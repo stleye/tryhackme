@@ -1,0 +1,131 @@
+# TryHackMe Notes
+
+# Windows
+
+**Propósito:** resumen breve y práctico de comandos, utilidades y conceptos vistos en TryHackMe. Uso: chuleta/recordatorio personal, no documentación exhaustiva.
+
+---
+
+## Índice rápido
+- Utilidades GUI/MSC
+- Monitorización y diagnóstico
+- Gestión de usuarios y servicios
+- Registro y persistencia
+- Networking básico
+- Comandos útiles (CLI / PowerShell)
+- Herramientas y tips para pentesting / administración
+- Buenas prácticas
+
+---
+
+## Utilidades (ejecutar desde Ejecutar / CMD / PowerShell)
+`control.exe` — abre el **Panel de control** clásico.
+
+`msconfig` — MSConfig: configurar y diagnosticar el inicio de Windows (habilitar/deshabilitar servicios y programas de arranque, safe boot, opciones de diagnóstico).
+
+`UserAccountControlSettings` — abre la configuración de **UAC** (nivel de notificaciones al instalar o modificar sistema).
+
+`compmgmt.msc` — **Computer Management** (centraliza Task Scheduler, Event Viewer, Shared Folders, Local Users and Groups, Device Manager, Disk Management, Services, WMI).
+
+`lusrmgr.msc` — **Local Users and Groups** (gestión de cuentas y grupos locales).
+
+`perfmon` — **Performance Monitor** (monitorizar CPU/memoria/disco/red; alertas; logs de rendimiento).
+
+`msinfo32` — **System Information**: resumen hardware, componentes, entorno software.
+
+`resmon` — **Resource Monitor**: monitor granular por proceso (CPU, memoria, disco, red).
+
+`regedit` — **Registry Editor**: navegar y modificar el registro; export/import de ramas para backup/despliegue.
+
+`control /name Microsoft.WindowsUpdate` — abre Windows Update en Configuración.
+
+---
+
+## Monitorización y troubleshooting rápidos
+- `taskmgr` — Administrador de tareas (procesos, rendimiento, inicio).
+- `perfmon` / `resmon` / `msinfo32` para diagnóstico avanzado.
+- `eventvwr.msc` — Visor de eventos (Application, System, Security): revisar errores y eventos relevantes.
+- `services.msc` — gestionar servicios (start/stop/startup type).
+- `tasklist` / `taskkill /PID <pid> /F` — ver/terminar procesos desde CMD.
+- `Process Explorer` (Sysinternals) — reemplazo avanzado de Task Manager (handles, DLLs, árbol de procesos).
+
+---
+
+## Gestión de usuarios y permisos
+- `lusrmgr.msc` (GUI) — usuarios y grupos locales.
+- `net user` — listar usuarios.
+- `net user <usuario>` — ver detalles / modificar contraseñas.
+- PowerShell: `Get-LocalUser` / `Get-LocalGroup` / `Add-LocalUser` / `Add-LocalGroupMember` (administración desde PS).
+
+---
+
+## Networking (comandos básicos)
+- `ipconfig /all` — configuración IP completa (DHCP, DNS, adaptadores).
+- `ping <host>` — comprobación ICMP básica.
+- `tracert <host>` — ruta a destino.
+- `nslookup <domain>` — consulta DNS interactiva.
+- `netstat -ano` — conexiones activas + PID (útil para correlacionar con `tasklist`).
+- `route print` — tabla de ruteo local.
+- `arp -a` — cache ARP.
+- `qwinsta` — sesiones RDP activas.
+- `net share` — ver recursos compartidos.
+
+---
+
+## Registro (Registry) y persistencia
+- `regedit` — editar registro (export/import .reg).
+- Ramas clave: `HKLM\Software`, `HKCU\Software`, `HKLM\SYSTEM\CurrentControlSet\Services`.
+- Herramientas: `Autoruns` (Sysinternals) para revisar persistencia en boot/startup.
+- Evitar cambios en registro en entornos de producción sin backup: exportar antes (`File -> Export`).
+
+---
+
+## PowerShell: comandos prácticos
+- `Get-Process` / `Stop-Process -Id <pid>` — procesos.
+- `Get-Service` / `Start-Service` / `Stop-Service` — servicios.
+- `Get-EventLog -LogName System -Newest 50` — revisar eventos (legacy).
+- `Get-WinEvent` — acceso más completo a logs.
+- `Get-NetTCPConnection` — conexiones TCP (en PS 5+ / módulos).
+- Ejecutar scripts: `powershell -ExecutionPolicy Bypass -File .\script.ps1` (usar responsablemente).
+
+**Nota:** PowerShell es extremadamente poderoso y el vector preferido para scripting administrativo y post-explotación; auditar scripts y restricciones de ejecución es buena práctica.
+
+---
+
+## Herramientas y utilidades recomendadas (mención)
+- **Sysinternals Suite** (Process Explorer, Autoruns, ProcMon, PsExec, PsList, Handle) — imprescindible para análisis in situ.
+- **Wireshark** — captura y análisis de tráfico de red.
+- **TCPView** — visión en tiempo real de conexiones TCP/UDP.
+- **Nmap** — escaneo de redes (fuera del host local usar en entornos controlados).
+- **Impacket** (Python) — colección para interacción con protocolos MSRPC/SMB (uso responsable).
+- **Metasploit Framework** — laboratorio y pruebas en entorno controlado.
+- **Mimikatz** — herramienta poderosa para recuperación de credenciales en memoria (alto riesgo; usar solo en entornos legales/educativos).
+- **sconfig** (en servidores core) — configuración rápida de Windows Server Core.
+
+---
+
+## Tips prácticos y atajos (rápidos, orientados a seguridad y administración)
+- Antes de cambiar registro o políticas, exporta claves o crea un checkpoint (System Restore) si aplica.
+- Para correlacionar una conexión sospechosa: `netstat -ano` → identificar PID → `tasklist /FI "PID eq <pid>"` o `Get-Process -Id <pid>`.
+- Usar `procmon` (Process Monitor) para ver actividad en tiempo real (registros, archivos, procesos); filtrar por PID/nombre para reducir ruido.
+- Para escalado de privilegios en pruebas controladas, revisar tareas programadas (`schtasks /query /fo LIST /v`) y servicios con permisos débiles (`sc qc <service>`).
+- Buscar credenciales: revisar **Credential Manager** (`control /name Microsoft.CredentialManager`) y archivos de configuración en perfiles de usuario.
+- Evitar ejecutar binarios descargados sin analizar (hash, strings, antivirus).
+- En VMs de laboratorio, hacer snapshots antes de pruebas destructivas.
+
+---
+
+## Comandos útiles adicionales (one-liners)
+- `netstat -an | find "ESTABLISHED"` — conexiones establecidas (CMD).
+- `powershell -command "Get-EventLog -LogName Application -EntryType Error -Newest 20"` — últimos errores.
+- `for /f "tokens=5" %a in ('netstat -ano ^| find "ESTABLISHED"') do @echo %a` — extracción rápida de PID (ejemplo CMD).
+- `wmic service get name,displayname,pathname,startmode,state` — listado de servicios con detalles (legacy).
+
+---
+
+## Referencias rápidas / próximas expansiones sugeridas
+- Añadir sección: **PowerShell avanzado** (remoting, remediación, logs).
+- Añadir sección: **Sysinternals cheat-sheet** con comandos y uso básico.
+- Añadir ejemplos de `Procmon` y filtros frecuentes.
+- Mantener actualizado con nuevas utilidades que aparecen en TryHackMe.
+
