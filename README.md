@@ -129,3 +129,39 @@
 - Añadir ejemplos de `Procmon` y filtros frecuentes.
 - Mantener actualizado con nuevas utilidades que aparecen en TryHackMe.
 
+# Search Engine Operators (Google / OSINT Notes)
+
+Todos usamos buscadores, pero pocas veces exprimimos su **poder real**. Los motores de búsqueda (Google, Bing, DuckDuckGo, etc.) permiten consultas avanzadas mediante **operadores**. Estos son especialmente útiles en **OSINT** (Open Source Intelligence) y **reconocimiento pasivo**.
+
+---
+
+## Operadores básicos en Google
+
+- **"frase exacta"**  
+  Poner palabras entre comillas fuerza la búsqueda exacta.  
+  Ejemplo:  
+  `"passive reconnaissance"`
+
+- **site:**  
+  Restringe la búsqueda a un dominio o subdominio.  
+  Ejemplo:  
+  `site:tryhackme.com success stories`
+
+- **- (excluir término)**  
+  Excluye resultados que contengan cierta palabra o frase.  
+  Ejemplo:  
+  `pyramids -tourism`
+
+- **filetype:**  
+  Busca archivos en lugar de páginas web. Tipos comunes: PDF, DOC, XLS, PPT.  
+  Ejemplo:  
+  `filetype:ppt cyber security`
+
+---
+
+## Tips prácticos
+- Puedes combinar operadores:  
+  `site:gov filetype:pdf "cyber security"`  
+- No todos los buscadores soportan los mismos operadores (ejemplo: DuckDuckGo y Bing tienen variaciones).
+- Ideal para encontrar **documentos expuestos**, presentaciones, correos, manuales internos o páginas olvidadas.
+
