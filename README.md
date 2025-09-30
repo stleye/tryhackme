@@ -41,11 +41,82 @@
 
 ---
 
+# Comandos de Windows
+
+- `set`  
+  Muestra, crea o modifica variables de entorno en la sesión actual del CMD.
+
+- `ver`  
+  Muestra la versión del sistema operativo.
+
+- `systeminfo`  
+  Presenta información detallada del sistema (OS, memoria, adaptadores, hotfixes).
+
+- `more` (con `Spacebar`)  
+  Pagina la salida de otro comando; `Space` avanza una pantalla, `Enter` una línea.
+
+- `driverquery`  
+  Lista los controladores instalados en el sistema con información básica.
+
+- `help`  
+  Muestra ayuda general y lista de comandos disponibles en CMD.
+
+- `cls`  
+  Limpia la pantalla del terminal.
+
+- `ipconfig /all`  
+  Muestra la configuración IP detallada (MAC, DHCP, DNS, etc.).
+
+- `tracert`  
+  Rastrea la ruta de red hasta un host mostrando cada salto.
+
+- `nslookup`  
+  Realiza consultas DNS interactivas o directas.
+
+- `netstat -a -b -o -n`  
+  Muestra conexiones y puertos:  
+  `-a` todas las conexiones, `-b` ejecutable asociado, `-o` PID, `-n` sin resolver nombres.
+
+- `dir /a /s`  
+  Lista archivos y carpetas; `/a` incluye archivos ocultos/sistema, `/s` recursivo.
+
+- `tree`  
+  Muestra la estructura de directorios en forma de árbol.
+
+- `mkdir`  
+  Crea uno o varios directorios.
+
+- `rmdir`  
+  Elimina directorios vacíos; `/S` elimina directorios con contenido.
+
+- `type`  
+  Muestra el contenido de un archivo de texto.
+
+- `move`  
+  Mueve archivos o directorios a otra ubicación.
+
+- `del`  
+  Elimina uno o varios archivos.
+
+- `copy`  
+  Copia uno o varios archivos a otra ubicación.
+
+- `tasklist /? /FI "..."`  
+  Lista procesos en ejecución; `/FI` filtra por condiciones (ej. nombre, PID).
+
+- `taskkill /PID <target>`  
+  Finaliza un proceso usando su número de PID.
+
+- `shutdown`  
+  Apaga, reinicia o cierra sesión en el sistema (opciones `/s`, `/r`, `/l`, `/t`).
+
+---
+
 ## Monitorización y troubleshooting rápidos
 - `taskmgr` — Administrador de tareas (procesos, rendimiento, inicio).
 - `perfmon` / `resmon` / `msinfo32` para diagnóstico avanzado.
 - `eventvwr.msc` — Visor de eventos (Application, System, Security): revisar errores y eventos relevantes.
-- `services.msc` — gestionar servicios (start/stop/startup type).
+[21~- `services.msc` — gestionar servicios (start/stop/startup type).
 - `tasklist` / `taskkill /PID <pid> /F` — ver/terminar procesos desde CMD.
 - `Process Explorer` (Sysinternals) — reemplazo avanzado de Task Manager (handles, DLLs, árbol de procesos).
 
@@ -164,4 +235,3 @@ Todos usamos buscadores, pero pocas veces exprimimos su **poder real**. Los moto
   `site:gov filetype:pdf "cyber security"`  
 - No todos los buscadores soportan los mismos operadores (ejemplo: DuckDuckGo y Bing tienen variaciones).
 - Ideal para encontrar **documentos expuestos**, presentaciones, correos, manuales internos o páginas olvidadas.
-
