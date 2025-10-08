@@ -497,3 +497,15 @@ Todos usamos buscadores, pero pocas veces exprimimos su **poder real**. Los moto
 - No todos los buscadores soportan los mismos operadores (ejemplo: DuckDuckGo y Bing tienen variaciones).
 - Ideal para encontrar **documentos expuestos**, presentaciones, correos, manuales internos o páginas olvidadas.
 
+## Puertos de Servicios
+
+| Protocol | Transport Protocol | Default Port Number |
+|-----------|--------------------|---------------------|
+| TELNET    | TCP                | 23                  |
+| DNS       | UDP or TCP         | 53                  |
+| HTTP      | TCP                | 80                  |
+| HTTPS     | TCP                | 443                 |
+| FTP       | TCP                | 21                  |
+| SMTP      | TCP                | 25                  |
+| POP3      | TCP                | 110                 |
+| IMAP      | TCP                | 143                 |
