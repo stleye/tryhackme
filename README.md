@@ -509,3 +509,95 @@ Todos usamos buscadores, pero pocas veces exprimimos su **poder real**. Los moto
 | SMTP      | TCP                | 25                  |
 | POP3      | TCP                | 110                 |
 | IMAP      | TCP                | 143                 |
+
+
+## tcpdump — Comandos importantes (todo en 1 bloque para copiar/pegar)
+
+## Resumen rápido
+`tcpdump` sin argumentos sólo verifica instalación. Para uso real siempre indicá: interfaz, destino (archivo o pantalla) y filtros.
+
+### Comandos / Opciones clave
+```bash
+# Ejecutar como root si es necesario
+sudo tcpdump ...
+```
+
+### Interfaces
+```bash
+ip a s                                 # listar interfaces
+sudo tcpdump -i INTERFACE ...          # -i ens5 (interfaz específica)
+sudo tcpdump -i any ...                # -i any (todas las interfaces)
+```
+
+### Guardar / leer
+```bash
+sudo tcpdump -i ens5 -w captura.pcap   # -w FILE: escribir pcap (no muestra en pantalla)
+tcpdump -r captura.pcap                # -r FILE: leer pcap
+```
+
+### Control de duración / tamaño
+```bash
+sudo tcpdump -i ens5 -c 100 ...        # -c COUNT: capturar N paquetes y salir
+sudo tcpdump -i ens5 -s 0 -w cap.pcap   # -s 0: snaplen máximo (capturar paquetes completos)
+sudo tcpdump -i ens5 -s 0 -C 100 -W 10 -w cap-%03d.pcap
+                                      # -C <MB> y -W <N>: rotación por tamaño y número de archivos
+```
+
+### Resoluciones / formato numérico
+```bash
+sudo tcpdump -i ens5 -n ...            # -n: mostrar IPs en formato numérico (sin DNS)
+sudo tcpdump -i ens5 -nn ...           # -nn: IPs y puertos numéricos (sin DNS ni servicios)
+```
+
+### Verbosidad
+```bash
+sudo tcpdump -i ens5 -v ...            # -v, -vv, -vvv: más detalles de protocolo
+```
+
+### 1) Mostrar 5 paquetes en ens5 con IPs numéricas
+```bash
+sudo tcpdump -i ens5 -n -c 5
+```
+
+### 2) Capturar 100 paquetes y guardar
+```bash
+sudo tcpdump -i ens5 -n -c 100 -w captura.pcap
+```
+
+### 3) Capturar paquetes completos (snaplen infinito) y guardar
+```bash
+sudo tcpdump -i ens5 -s 0 -w captura_full.pcap
+```
+
+### 4) Leer pcap y mostrar IPs+puertos numéricos
+```bash
+tcpdump -r captura.pcap -nn
+```
+
+### 5) Capturar en todas las interfaces sin resolver nada
+sudo tcpdump -i any -nn
+
+### 6) Rotación por tamaño (10 archivos de 100 MB)
+```bash
+sudo tcpdump -i ens5 -s 0 -C 100 -W 10 -w captura-%03d.pcap
+```
+
+### 7) Filtrado BPF para reducir ruido (ej: sólo HTTP)
+```bash
+sudo tcpdump -i ens5 'tcp and port 80'
+```
+
+### 8) Verbose para debugging de protocolos (50 paquetes)
+```bash
+sudo tcpdump -i ens5 -vv -c 50
+```
+
+## Tips prácticos (rápido, orientado a análisis / pentesting)
+
+### directorio de destino y one-liner
+```bash
+sudo mkdir -p /var/log/tcpdump
+sudo tcpdump -i ens5 -s 0 -w /var/log/tcpdump/cap-%Y%m%d_%H%M%S.pcap -C 500 -W 20 -n
+# -s 0 captura completo; -C 500 rota cada 500 MB; -W 20 mantiene 20 archivos; -n evita resoluciones
+```
+
