@@ -571,7 +571,104 @@ ip[0] & 0xf != 5    # IP con opciones
 
 ---
 
-## Referencias rápidas / próximas expansiones
-- PowerShell avanzado (remoting, logs, remediación)
-- Sysinternals cheat-sheet
-- Ejemplos y filtros en Procmon
+# Nmap — Cheatsheet (rápido)
+
+# Nmap Cheat Sheet
+
+Referencia rápida de opciones comunes de **nmap** para discovery, escaneo de puertos, detección de servicios y performance.
+
+---
+
+## Contenido
+- [Escaneo de hosts](#escaneo-de-hosts)
+- [Detección de hosts](#detección-de-hosts)
+- [Escaneo de puertos](#escaneo-de-puertos)
+- [Detección de servicios / OS](#detección-de-servicios--os)
+- [Timing / rendimiento](#timing--rendimiento)
+- [Salida / reportes](#salida--reportes)
+- [Opciones útiles y ejemplos](#opciones-útiles-y-ejemplos)
+- [Tips rápidos (CLI / hacking)](#tips-rápidos-cli--hacking)
+- [Advertencias legales y operativas](#advertencias-legales-y-operativas)
+
+---
+
+## Escaneo de hosts
+| Opción | Descripción |
+|---|---|
+| `-sL` | List scan — lista targets sin realizar escaneo. |
+
+## Detección de hosts
+| Opción | Descripción |
+|---|---|
+| `-sn` | Ping scan — sólo descubrimiento de hosts (no escanea puertos). |
+| `-Pn` | Tratar todos los hosts como online (no enviar pings). Usar con cuidado. |
+
+## Escaneo de puertos
+| Opción | Descripción |
+|---|---|
+| `-sT` | TCP connect scan — completa el three-way handshake (no requiere privilegios especiales). |
+| `-sS` | TCP SYN scan — sólo el primer paso del handshake (requerirá privilegios/root para raw sockets). |
+| `-sU` | UDP scan — escaneo de puertos UDP. |
+| `-F` | Fast mode — escanea los 100 puertos más comunes. |
+| `-p [range]` | Especifica rango de puertos. Ej.: `-p-` escanea todos los puertos. |
+| `--open` | Mostrar sólo puertos que están abiertos (útil en scripts/filtrado). |
+
+## Detección de servicios / OS
+| Opción | Descripción |
+|---|---|
+| `-O` | Detección de sistema operativo (OS detection). |
+| `-sV` | Detección de versión del servicio. |
+| `-A` | Detecta OS, versiones y activa scripts adicionales (más ruido y tiempo). |
+
+## Timing / rendimiento
+| Opción | Descripción |
+|---|---|
+| `-T<0-5>` | Plantillas de timing: `0` paranoid, `1` sneaky, `2` polite, `3` normal, `4` aggressive, `5` insane. |
+| `--min-parallelism <num>` / `--max-parallelism <num>` | Controla el número mínimo/máximo de probes en paralelo. |
+| `--min-rate <num>` / `--max-rate <num>` | Controla la tasa mínima/máxima de paquetes por segundo. |
+| `--host-timeout <time>` | Tiempo máximo de espera para un host. |
+
+## Salida / reportes
+| Opción | Descripción |
+|---|---|
+| `-v` / `-vv` / `-v4` | Verbosidad (niveles). |
+| `-d` / `-d9` | Debug (niveles). |
+| `-oN <file>` | Normal output a archivo. |
+| `-oX <file>` | XML output a archivo. |
+| `-oG <file>` | Grepable output a archivo. |
+| `-oA <basename>` | Output en todos los formatos principales (genera `<basename>.nmap`, `.xml`, `.gnmap`). |
+
+---
+
+## Opciones útiles y ejemplos
+
+### Ejemplos básicos
+```bash
+# Escaneo rápido de los 100 puertos más comunes en una red
+sudo nmap -sS -F 192.168.1.0/24
+
+# Escaneo completo de puertos TCP (0-65535) con detección de servicios y OS, salida en todos los formatos
+sudo nmap -sS -p- -A -T4 -oA fullscan_local 192.168.1.10
+
+# Escaneo UDP (más lento y ruidoso; se recomienda privilegios)
+sudo nmap -sU -p 53,123 10.0.0.5
+
+# Ping scan para descubrir hosts sin escanear puertos
+nmap -sn 10.0.0.0/24
+
+# Tratar hosts como online (ignorar ICMP/ARP/ping filtrados)
+sudo nmap -Pn -p 22,80 203.0.113.0/24
+
+# Escaneo con salida "solo abiertos" y verbosidad
+sudo nmap --open -sS -p 22,80 -v 192.168.1.0/24
+```
+
+### Forzar tasa mínima y máxima (útil en redes lentas o cuando se necesita velocidad)
+```bash
+sudo nmap --min-rate 100 --max-rate 1000 -p 1-1000 192.168.1.0/24
+```
+
+### Limitar tiempo por host
+```bash
+sudo nmap --host-timeout 30s -p 1-1024 192.168.1.0/24
+```
