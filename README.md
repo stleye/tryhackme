@@ -672,3 +672,20 @@ sudo nmap --min-rate 100 --max-rate 1000 -p 1-1000 192.168.1.0/24
 ```bash
 sudo nmap --host-timeout 30s -p 1-1024 192.168.1.0/24
 ```
+
+# Hashcat Cheatsheet — Rápido
+
+* `-m <mode>` : modo (ej. `3200` = bcrypt)
+* `-a <attack>` : ataque (`0`=dicc, `3`=mask, `6`=hybrid)
+* `--example-hashes` : listar modos y ejemplos
+
+Comandos rápidos:
+
+```
+hashcat -m 3200 -a 0 hashes.txt /usr/share/wordlists/rockyou.txt
+hashcat --show hashes.txt            # mostrar crackeados
+cut -d: -f2 cracked.txt              # extraer solo passwords
+hashid <hash>                        # identificar modo sugerido
+```
+
+
